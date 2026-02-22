@@ -1,25 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-    <!-- App Sandbox: required for Mac App Store distribution -->
-    <key>com.apple.security.app-sandbox</key>
-    <true/>
-
-    <!-- Network Extension: Personal VPN (IKEv2/IPSec via NEVPNManager) -->
-    <key>com.apple.developer.networking.vpn.api</key>
-    <array>
-        <string>allow-vpn</string>
-    </array>
-
-    <!-- Outbound network connections -->
-    <key>com.apple.security.network.client</key>
-    <true/>
-
-    <!-- Keychain access -->
-    <key>keychain-access-groups</key>
-    <array>
-        <string>$(AppIdentifierPrefix)com.yourapp.vpnconnector</string>
-    </array>
-</dict>
+<dict/>
 </plist>

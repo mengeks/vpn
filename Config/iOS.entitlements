@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-    <!-- Network Extension: Personal VPN (IKEv2/IPSec/L2TP via NEVPNManager) -->
-    <key>com.apple.developer.networking.vpn.api</key>
-    <array>
-        <string>allow-vpn</string>
-    </array>
-
-    <!-- Keychain sharing (optional: share credentials with extensions) -->
-    <key>keychain-access-groups</key>
-    <array>
-        <string>$(AppIdentifierPrefix)com.yourapp.vpnconnector</string>
-    </array>
-</dict>
+<dict/>
 </plist>

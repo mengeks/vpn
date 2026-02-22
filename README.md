@@ -41,8 +41,8 @@ Sources/
 
 - **Xcode 15+**
 - **iOS 16+** / **macOS 13+**
-- An Apple Developer account with the **Personal VPN** entitlement
-- A real IKEv2 VPN server for Japan and China (see below)
+- An Apple ID (free is enough to build and see the UI; see note below about VPN entitlement)
+- A real IKEv2 VPN server (see server setup section below)
 
 ---
 
@@ -50,83 +50,44 @@ Sources/
 
 ### 1. Generate the Xcode project
 
-Install [XcodeGen](https://github.com/yonaskolb/XcodeGen) if you haven't:
-
 ```bash
-brew install xcodegen
-```
-
-Then from the repo root:
-
-```bash
+brew install xcodegen   # if not already installed
 xcodegen generate
 open VPNConnector.xcodeproj
 ```
 
-### 2. Set your Team ID
+### 2. Sign in to Xcode and enable automatic signing
 
-In `project.yml`, replace the empty `DEVELOPMENT_TEAM` value:
+The project uses `CODE_SIGN_STYLE = Automatic` — Xcode manages provisioning profiles for you.
 
-```yaml
-settings:
-  base:
-    DEVELOPMENT_TEAM: "XXXXXXXXXX"   # your 10-character Apple Team ID
+1. Xcode > Settings > Accounts > `+` > sign in with your Apple ID
+2. Select each target (`VPNConnector-iOS`, `VPNConnector-macOS`) in the project navigator
+3. Under **Signing & Capabilities**, confirm "Automatically manage signing" is checked
+4. Select your team (shown as "Your Name (Personal Team)" for a free Apple ID)
+
+Xcode will create certificates and provisioning profiles automatically — no manual portal work.
+
+**Finding your Team ID** (needed only if you want to hardcode it in `project.yml`):
+
+```bash
+security find-identity -v -p codesigning
 ```
 
-Run `xcodegen generate` again after editing.
+Look for `"Apple Development: your@email.com (XXXXXXXXXX)"` — the 10-character code in parentheses is your Team ID. This appears even with a free Personal Team after your first Xcode build.
 
-### 3. Update bundle IDs
+### 3. Configure your VPN servers
 
-Change the `PRODUCT_BUNDLE_IDENTIFIER` values in `project.yml` to match
-identifiers registered in your Apple Developer account:
-
-```yaml
-PRODUCT_BUNDLE_IDENTIFIER: com.yourcompany.vpnconnector.ios
-PRODUCT_BUNDLE_IDENTIFIER: com.yourcompany.vpnconnector.macos
-```
-
-Also update `VPNCredentials.keychainService` in `VPNServer.swift` and the
-keychain group in both `.entitlements` files to match.
-
-### 4. Configure your VPN servers
-
-Edit `Sources/Shared/Models/VPNServer.swift` and replace the placeholder
-hostnames with your actual server addresses:
+Edit `Sources/Shared/Models/VPNServer.swift` and replace the placeholder hostnames:
 
 ```swift
 VPNServer(
     name: "Japan - Tokyo",
-    host: "jp-tokyo.yourvpn.example.com",      // ← your server
+    host: "jp-tokyo.yourvpn.example.com",      // ← your real server
     remoteIdentifier: "jp-tokyo.yourvpn.example.com"
 ),
 ```
 
-### 5. Enable the Personal VPN capability in Xcode
-
-For each target (iOS + macOS):
-1. Select the target → **Signing & Capabilities**
-2. Click **+ Capability** → add **Personal VPN**
-
-The entitlement files in `Config/` already contain the required keys; Xcode
-just needs to link them to a provisioning profile.
-
----
-
-## Running
-
-### iOS Simulator
-
-The VPN tunnel **cannot** be established in the iOS Simulator. Run on a
-physical device for full functionality.
-
-### macOS
-
-Build and run the macOS target directly. The app installs a VPN configuration
-in System Settings → VPN on first connect.
-
----
-
-## Configuring VPN credentials
+### 4. Enter credentials at runtime
 
 Tap/click the **key icon** (toolbar) to open the credentials sheet:
 
@@ -140,18 +101,62 @@ Credentials are stored in the system Keychain — never in plain text.
 
 ---
 
+## What works with a free Apple account vs. paid
+
+| Feature | Free Personal Team | Paid ($99/yr) |
+|---|---|---|
+| Build and run iOS app on your device | Yes (expires every 7 days) | Yes |
+| Full UI — server list, credentials, status | Yes | Yes |
+| **VPN tunnel on iOS** | **No** | Yes |
+| VPN tunnel on macOS (local dev build) | Possibly | Yes |
+| TestFlight | No | Yes |
+| App Store distribution | No | Yes |
+
+### The VPN entitlement restriction
+
+The `com.apple.developer.networking.vpn.api` entitlement (in `Config/iOS.entitlements`)
+lets `NEVPNManager` configure system VPN tunnels. Apple's provisioning servers only grant
+this in profiles for **paid Apple Developer Program members**.
+
+**What this means in practice:**
+- The app compiles and launches fine on a free account
+- Tapping Connect will fail with a permission error on **iOS** (entitlement not in profile)
+- On **macOS**, local dev builds may work — Apple is more permissive for non-App-Store macOS apps; worth testing
+- The $99/year Apple Developer Program is the only supported path to VPN functionality on iOS
+
+### Renewing a free-account iOS build
+
+Free provisioning profiles expire after 7 days. Plug in your device, hit ⌘R in Xcode — it re-signs and re-installs automatically.
+
+---
+
+## Running on a physical iOS device
+
+1. Plug in iPhone or iPad
+2. Select your device from the run destination dropdown in Xcode
+3. Press ⌘R
+4. First time: on the device go to **Settings > General > VPN & Device Management** and tap "Trust" under your developer certificate
+
+---
+
+## macOS notes
+
+- The app stays alive in the **menu bar** after the window is closed (`applicationShouldTerminateAfterLastWindowClosed` returns `false`)
+- The menu bar icon reflects connection state (lock open/closed/spinning)
+- Quick status and disconnect are available from the menu bar without opening the full window
+
+---
+
 ## VPN Server Infrastructure
 
-This app is a **client only**. You need IKEv2-compatible servers in Japan
-and China. Common options:
+This app is a **client only**. You need IKEv2-compatible servers. Common options:
 
-- **Self-hosted**: [strongSwan](https://www.strongswan.org/) on a VPS
-  (e.g., AWS Tokyo `ap-northeast-1`, or a Chinese cloud provider)
-- **Managed**: Any IKEv2-capable VPN service that provides custom credentials
+- **Self-hosted**: [strongSwan](https://www.strongswan.org/) on a VPS (e.g., AWS Tokyo `ap-northeast-1`)
+- **Managed**: Any IKEv2-capable VPN service that provides custom server addresses + PSK
 
-> **Note on China connectivity**: Running a VPN server *inside* China for
-> inbound access requires ICP licensing compliance. A common alternative is a
-> server in Hong Kong (`ap-east-1`) for low-latency access from mainland China.
+> **Note on China connectivity**: Running a VPN server *inside* China for inbound
+> access requires ICP licensing compliance. A common alternative is a server in
+> Hong Kong (`ap-east-1`) for low-latency access from mainland China.
 
 ---
 
